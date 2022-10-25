@@ -130,11 +130,8 @@ class PGScene:
         self._screen = self._game.get_screen()
         self._objects = PGGroup()
         self._transition = self._trans_str_to_obj(transition)
-        if bg:
-            self._background = bg
-        else:
-            self._background = pygame.Surface(self._screen.get_size()).convert()
-            self._background.fill((0, 0, 0))
+        self._background = None
+        self.set_background(bg)
         self.update_background()
 
     def add_object(self, obj: PGObject):
@@ -142,6 +139,13 @@ class PGScene:
 
     def remove_object(self, obj: PGObject):
         self._objects.remove(obj)
+
+    def set_background(self, bg: pygame.Surface = None) -> None:
+        if bg:
+            self._background = bg
+        else:
+            self._background = pygame.Surface(self._screen.get_size()).convert_alpha()
+            self._background.fill((0, 0, 0))
 
     def update_background(self) -> None:
         self._objects.clear(self._screen, self._background)

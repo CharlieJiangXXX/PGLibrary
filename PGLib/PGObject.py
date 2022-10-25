@@ -30,6 +30,7 @@
 
 import pygame
 from typing import Union, Sequence, Callable, Type
+from pygame.mask import from_surface
 
 
 class PGScene:
@@ -37,32 +38,30 @@ class PGScene:
 
 
 class PGObject(pygame.sprite.DirtySprite):
-    def __init__(self, parent: Type[PGScene] = None, x: int = 0, y: int = 0) -> None:
+    def __init__(self, parent: Type[PGScene] = None, x: int = 0, y: int = 0, img: pygame.Surface = None) -> None:
         super().__init__()
         self._parent = parent
         self.dirty = 1
         self._clickAction = None
         self._hoverAction = None
-        self._origImage = None
-        self._center = None
-        self._x = x
-        self._y = y
+        if not img:
+            self.image = pygame.Surface((0, 0), pygame.SRCALPHA)
+            self._origImage = None
+            self._imageSet = False
+        else:
+            self.image = img.convert_alpha()
+            self._origImage = img
+            self._imageSet = True
+        self.rect = self.image.get_rect(topleft=(x, y))
+        self._center = self.rect.center
+        self._angle = 0
         if self._parent:
             self._parent.add_object(self)
-
-    def set_x(self, x: int = 0):
-        self._x = x
-        self.rect.x = x
-
-    def set_y(self, y: int = 0):
-        self._y = y
-        self.rect.y = y
 
     def move(self, pos: tuple[int, int]):
         self._center = (pos[0] + self.get_rect().width // 2, pos[0] + self.get_rect().height // 2)
         self.rect.topleft = pos
-        self.set_x(self.get_rect().x)
-        self.set_y(self.get_rect().y)
+        self.set_pos(self.get_rect().x, self.get_rect().y)
         self.dirty = 1
 
     def update(self) -> None:
@@ -72,17 +71,17 @@ class PGObject(pygame.sprite.DirtySprite):
         return self.image
 
     def set_img(self, img: pygame.Surface) -> None:
-        img = img.convert()
-        if not self._origImage:
+        img = img.convert_alpha()
+        if not self._imageSet:
             self._origImage = img
-        if not isinstance(self._center, tuple):
-            self._center = (self._x + img.get_rect().center[0], self._y + img.get_rect().center[1])
-        self.set_rect(img.get_rect(center=self._center))
+            self._imageSet = True
         self.image = img
+        self.set_rect(img.get_rect(center=self.rect.center))
         self.dirty = 1
 
     def rotate(self, angle: float):
-        self.set_img(pygame.transform.rotozoom(self._origImage, angle, 1))
+        self._angle += angle
+        self.set_img(pygame.transform.rotozoom(self._origImage, -self._angle, 1))
 
     def scale(self, factor: float):
         self.set_img(pygame.transform.smoothscale(self.image, (self.image.get_width() * factor,
@@ -92,6 +91,7 @@ class PGObject(pygame.sprite.DirtySprite):
         if alpha < 0:
             alpha = 0
         self.image.set_alpha(alpha)
+        self.dirty = 1
 
     def set_rect(self, rect: pygame.rect.Rect) -> None:
         self.rect = rect
@@ -138,6 +138,14 @@ class PGObject(pygame.sprite.DirtySprite):
         if self._hoverAction:
             self._hoverAction()
 
+    def collidepoint(self, p: tuple[int, int]) -> bool:
+        mask = from_surface(self.image)
+        try:
+            mask.get_at((p[0] - self.get_pos()[0], p[1] - self.get_pos()[1]))
+            return True
+        except IndexError:
+            return False
+
     def process_events(self, event: pygame.event.Event) -> None:
         return
 
@@ -155,8 +163,8 @@ class PGGroup(pygame.sprite.LayeredDirty):
                 continue
 
             if event.type == pygame.MOUSEBUTTONDOWN | pygame.MOUSEMOTION:
-                x, y = pygame.mouse.get_pos()
-                if s.rect.collidepoint(x, y):
+                # Collision is still not accurate
+                if s.collidepoint(pygame.mouse.get_pos()):
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         s.on_click()
                         return

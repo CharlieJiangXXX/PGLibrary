@@ -1,5 +1,3 @@
-import time
-
 from PGLib.PGGame import *
 
 
@@ -11,16 +9,16 @@ class TestScene(PGScene):
         self._button2 = PGTextButton(self, 50, 50, "byebye")
         self._button2.set_click_action(self.func2)
         self._button3 = PGTextButton(self, 200, 200, "hihihi")
-        self._button3.set_click_action(self.func1)
+        self._button3.set_click_action(self.func3)
 
-    @staticmethod
-    def func1():
-        print("hi")
+    def func1(self):
+        self._button1.scale(0.5)
 
     def func2(self):
-        self._button2.move((100, 100))
-        #self._button2.rotate(30)
-        print("hi")
+        self._button2.rotate(30)
+
+    def func3(self):
+        self._button3.set_alpha(100)
 
 
 game = PGGame()

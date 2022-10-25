@@ -39,7 +39,6 @@ from PGLib.PGObject import *
 #             to click and hover. All subclasses should fill @self._img with their custom
 #             image.
 
-class PGButton(PGObject):
     # @function __init__
     # @abstract Class constructor.
     # @param screen The main display.
@@ -47,18 +46,13 @@ class PGButton(PGObject):
     # @param y Top left y coordinate of the button.
     # @param img The image that will be placed onto the screen.
 
-    def __init__(self, parent: Type[PGScene], x: int = 0, y: int = 0, img: pygame.Surface = None) -> None:
-        super().__init__(parent, x, y)
-        if img:
-            self.set_img(img)
-
 
 # @class PGTextButton(PGButton)
 # @abstract Class representing simple buttons with text.
 # @discussion This class takes in text and a font, which it then renders into a surface
 #             that will be set to self._img in the parent class constructor.
 
-class PGTextButton(PGButton):
+class PGTextButton(PGObject):
     def __init__(self, parent: Type[PGScene], x: int, y: int, text: str, font: pygame.font.Font = None,
                  bg_color: str = "white", width: int = 100, height: int = 100) -> None:
         if font:
