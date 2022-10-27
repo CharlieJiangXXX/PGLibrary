@@ -27,10 +27,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-import pygame
 
 from PGLib.PGButtons import *
-from PGLib.PGAnimations import PGAnimation, PGFader, PGZoomer
 
 
 class PGScene:
@@ -60,7 +58,8 @@ class PGGame:
         # Start with SSMenu
         self._scenes = []
         self._activeScene = None
-        self.add_scene(PGScene(self, "none"))  # Default empty scene
+        self._activeSceneChangeComplete = True
+        self.set_active_scene(PGScene(self, transition="none"))
 
     def get_screen(self) -> pygame.Surface:
         return self._screen
@@ -71,7 +70,6 @@ class PGGame:
 
     def add_scene(self, scene: PGScene) -> None:
         self._scenes.append(scene)
-        self.set_active_scene(len(self._scenes))
 
     # @function remove_scene
     # @abstract Remove a specified scene and activate the topmost one.
@@ -81,24 +79,26 @@ class PGGame:
         if scene != self._activeScene:
             self._scenes.remove(scene)
             return
-        self.set_active_scene(len(self._scenes))
+        self.set_active_scene_index(len(self._scenes) - 1)
 
     # set_level
     # eliminate all scenes above @level and activate it thereafter
 
-    def set_active_scene(self, level: int = 1) -> None:
+    def set_active_scene(self, scene: PGScene) -> None:
+        assert scene, "Scene must be valid!"
+        assert scene in self._scenes, "Scene must be contained!"
         if self._activeScene:
             self._activeScene.transition_out()
-        while len(self._scenes) > level:
-            self._scenes.pop()
-        self._activeScene = self._scenes[level - 1]
-        self._activeScene.update()
-        self._activeScene.transition_in()
+        self._activeScene = scene
+        self._activeSceneChangeComplete = False
+
+    def set_active_scene_index(self, index: int = 0) -> None:
+        self.set_active_scene(self._scenes[index])
 
     # main game loop
     # processes & updates the active scene every frame
 
-    def start(self) -> None:
+    def _game_loop(self) -> None:
         while True:
             for event in pygame.event.get():
                 if self._activeScene:
@@ -109,9 +109,16 @@ class PGGame:
                     self._screen = pygame.display.set_mode((event.w, event.h),
                                                            pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.RESIZABLE)
 
-            self._activeScene.update()
-            self._activeScene.draw()
+            if self._activeScene:
+                if not self._activeSceneChangeComplete:
+                    self._activeScene.update()
+                    self._activeSceneChangeComplete = self._activeScene.transition_in()
+                self._activeScene.update()
+                self._activeScene.draw()
             pygame.time.delay(self._delay)
+
+    def start(self):
+        self._game_loop()
 
 
 # @class PGScene
@@ -127,12 +134,17 @@ class PGGame:
 class PGScene:
     def __init__(self, game: PGGame, bg: pygame.Surface = None, transition: str = "fade"):
         self._game = game
+        self._game.add_scene(self)
         self._screen = self._game.get_screen()
         self._objects = PGGroup()
-        self._transition = self._trans_str_to_obj(transition)
+        self._transition = transition
+        self._veil = None
         self._background = None
         self.set_background(bg)
         self.update_background()
+
+    def get_group(self):
+        return self._objects
 
     def add_object(self, obj: PGObject):
         self._objects.add(obj)
@@ -150,14 +162,6 @@ class PGScene:
     def update_background(self) -> None:
         self._objects.clear(self._screen, self._background)
 
-    @staticmethod
-    def _trans_str_to_obj(name: str) -> PGAnimation:
-        if name == "fade":
-            return PGFader(None, delay=10)
-        elif name == "zoom":
-            return PGZoomer()
-        return PGAnimation(None)
-
     def get_game(self) -> PGGame:
         return self._game
 
@@ -165,7 +169,7 @@ class PGScene:
     # @abstract Sets the current scene as active in the game.
 
     def activate(self) -> None:
-        self._game.add_scene(self)
+        self._game.set_active_scene(self)
 
     # @function finish
     # @abstract Entirely remove the scene from the game.
@@ -197,10 +201,27 @@ class PGScene:
     # TO-DO: Wrap these into a transition module
     # Fade into and out of the scene
 
-    def transition_in(self) -> None:
-        if isinstance(self._transition, PGFader):
-            self._transition.effect_in(255)
+    def transition_in(self) -> bool:
+        if self._transition == "fade":
+            if not self._veil:
+                veil_img = pygame.Surface(self._screen.get_size(), pygame.SRCALPHA)
+                veil_img.fill((0, 0, 0))
+                self._veil = PGObject(self, 0, 0, img=veil_img)
+                self._veil.fade(0)
+                return False
+            if self._veil.get_alpha() == 0:
+                self._veil.kill()
+                self._objects.remove(self._veil)
+                return True
+            return False
+        elif self._transition == "zoom":
+            return True
+        return True
 
     def transition_out(self) -> None:
-        if isinstance(self._transition, PGFader):
-            self._transition.effect_out(255)
+        pass
+        #if self._transition == "fade":
+            #fader = PGFader(delay=10)
+            #fader.effect_out(255)
+        #elif self._transition == "zoom":
+            #PGZoomer()

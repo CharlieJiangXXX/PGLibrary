@@ -27,10 +27,12 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
+import math
 
 import pygame
 from typing import Union, Sequence, Callable, Type
 from pygame.mask import from_surface
+import operator
 
 
 class PGScene:
@@ -38,10 +40,11 @@ class PGScene:
 
 
 class PGObject(pygame.sprite.DirtySprite):
-    def __init__(self, parent: Type[PGScene] = None, x: int = 0, y: int = 0, img: pygame.Surface = None) -> None:
+    def __init__(self, parent: Type[PGScene], x: int = 0, y: int = 0, img: pygame.Surface = None) -> None:
         super().__init__()
         self._parent = parent
-        self.dirty = 1
+        self.add(parent.get_group())
+        self.dirty = 2
         self._clickAction = None
         self._hoverAction = None
         if not img:
@@ -52,17 +55,21 @@ class PGObject(pygame.sprite.DirtySprite):
             self.image = img.convert_alpha()
             self._origImage = img
             self._imageSet = True
+
         self.rect = self.image.get_rect(topleft=(x, y))
-        self._center = self.rect.center
+        self._posChanges = []
+
         self._angle = 0
+        self._angleChanges = []
+
+        self._scale = 1
+        self._scaleChanges = []
+
+        self._alpha = 255
+        self._alphaChanges = []
+
         if self._parent:
             self._parent.add_object(self)
-
-    def move(self, pos: tuple[int, int]):
-        self._center = (pos[0] + self.get_rect().width // 2, pos[0] + self.get_rect().height // 2)
-        self.rect.topleft = pos
-        self.set_pos(self.get_rect().x, self.get_rect().y)
-        self.dirty = 1
 
     def update(self) -> None:
         return
@@ -77,21 +84,100 @@ class PGObject(pygame.sprite.DirtySprite):
             self._imageSet = True
         self.image = img
         self.set_rect(img.get_rect(center=self.rect.center))
-        self.dirty = 1
 
-    def rotate(self, angle: float):
-        self._angle += angle
+    def set_angle(self, angle: float):
+        self._angle = angle
         self.set_img(pygame.transform.rotozoom(self._origImage, -self._angle, 1))
 
-    def scale(self, factor: float):
-        self.set_img(pygame.transform.smoothscale(self.image, (self.image.get_width() * factor,
-                                                               self.image.get_height() * factor)))
+    def set_scale(self, factor: float):
+        self._scale = factor
+        self.set_img(pygame.transform.smoothscale(self._origImage, (self._origImage.get_width() * factor,
+                                                                    self._origImage.get_height() * factor)))
 
     def set_alpha(self, alpha: int) -> None:
         if alpha < 0:
             alpha = 0
         self.image.set_alpha(alpha)
-        self.dirty = 1
+        self._origImage.set_alpha(alpha)
+        self._imageSet = True
+        self._alpha = alpha
+
+    def get_alpha(self) -> int:
+        return self._alpha
+
+    # Animations
+    # TO-DO: speed customization, unification with delay, inertia
+
+    def fade(self, alpha: int) -> None:
+        self._alphaChanges.append(alpha)
+
+    def _test_fade(self) -> None:
+        if not self._alphaChanges:
+            return
+        if self._alphaChanges[0] == self._alpha:
+            self._alphaChanges.pop(0)
+            return
+
+        if self._alpha > self._alphaChanges[0]:
+            self.set_alpha(self._alpha - 8 if self._alphaChanges[0] < self._alpha - 8 else self._alphaChanges[0])
+        elif self._alpha < self._alphaChanges[0]:
+            self.set_alpha(self._alpha + 8 if self._alphaChanges[0] > self._alpha + 8 else self._alphaChanges[0])
+
+    def zoom(self, factor: float):
+        self._scaleChanges.append(factor)
+
+    def _test_zoom(self) -> None:
+        if not self._scaleChanges:
+            return
+        if self._scaleChanges[0] == self._scale:
+            self._scaleChanges.pop(0)
+            return
+
+        if self._scale > self._scaleChanges[0]:
+            self.set_scale(self._scale - 0.2 if self._scaleChanges[0] < self._scale - 0.2 else self._scaleChanges[0])
+        elif self._scale < self._scaleChanges[0]:
+            self.set_scale(self._scale + 0.2 if self._scaleChanges[0] > self._scale + 0.2 else self._scaleChanges[0])
+
+    def rotate(self, angle: float) -> None:
+        self._angleChanges.append(angle)
+
+    def _test_rotate(self) -> None:
+        if not self._angleChanges:
+            return
+        if self._angleChanges[0] == self._angle:
+            self._angleChanges.pop(0)
+            return
+
+        if self._angle > self._angleChanges[0]:
+            self.set_angle(self._angle - 3 if self._angleChanges[0] < self._angle - 3 else self._angleChanges[0])
+        if self._angle < self._angleChanges[0]:
+            self.set_angle(self._angle + 3 if self._angleChanges[0] > self._angle + 3 else self._angleChanges[0])
+
+    def move(self, pos: tuple[int, int]) -> None:
+        dx, dy = tuple(map(operator.sub, pos, self.rect.topleft))
+        dx = math.ceil(dx / 50)
+        dy = math.ceil(dy / 50)
+        self._posChanges.append((pos, dx, dy))
+
+    def _test_move(self) -> None:
+        if not self._posChanges:
+            return
+        if self._posChanges[0][0] == self.get_pos():
+            self._posChanges.pop(0)
+            return
+
+        if self.get_pos() != self._posChanges[0][0]:
+            dx = self._posChanges[0][1]
+            dy = self._posChanges[0][2]
+            x = self._posChanges[0][0][0]
+            y = self._posChanges[0][0][1]
+            temp_x = self.get_pos()[0] + dx
+            temp_y = self.get_pos()[1] + dy
+            if (dx < 0 and temp_x < x) or (dx > 0 and temp_x > x):
+                temp_x = x
+            if (dy < 0 and temp_y < y) or (dy > 0 and temp_y > y):
+                temp_y = y
+            self.set_pos((temp_x, temp_y))
 
     def set_rect(self, rect: pygame.rect.Rect) -> None:
         self.rect = rect
@@ -102,13 +188,12 @@ class PGObject(pygame.sprite.DirtySprite):
     def get_pos(self) -> (int, int):
         return self.rect.x, self.rect.y
 
-    def set_pos(self, x: int, y: int) -> None:
-        self.rect.topleft = (x, y)
-        self.dirty = 1
+    def set_pos(self, pos: tuple[int, int]) -> None:
+        self.rect.topleft = pos
 
     def set_pos_prop(self, x: float, y: float) -> None:
-        self.set_pos(int((pygame.display.get_surface().get_width() - self.get_rect().width) * x),
-                     int((pygame.display.get_surface().get_height() - self.get_rect().height) * y))
+        self.set_pos((int((pygame.display.get_surface().get_width() - self.get_rect().width) * x),
+                     int((pygame.display.get_surface().get_height() - self.get_rect().height) * y)))
 
     def set_click_action(self, action: Callable) -> None:
         if callable(action):
@@ -173,3 +258,11 @@ class PGGroup(pygame.sprite.LayeredDirty):
                         return
 
             s.process_events(event)
+
+    def update(self, *args, **kwargs) -> None:
+        super().update(*args, **kwargs)
+        for s in self.sprites():
+            s._test_fade()
+            s._test_rotate()
+            s._test_zoom()
+            s._test_move()
