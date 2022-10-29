@@ -73,42 +73,53 @@ class PGObject(pygame.sprite.DirtySprite):
     def update(self) -> None:
         return
 
-    def get_img(self) -> pygame.Surface:
+    @property
+    def img(self) -> pygame.Surface:
         return self.image
 
-    def set_img(self, img: pygame.Surface) -> None:
+    @img.setter
+    def img(self, img: pygame.Surface) -> None:
         img = img.convert_alpha()
         if not self._imageSet:
             self._origImage = img
             self._imageSet = True
         self.image = img
-        self.set_rect(img.get_rect(center=self.rect.center))
+        self.rect = img.get_rect(center=self.rect.center)
 
-    def set_angle(self, angle: float):
+    @property
+    def angle(self) -> float:
+        return self._angle
+
+    @angle.setter
+    def angle(self, angle: float):
         self._angle = angle
-        self.set_img(pygame.transform.rotozoom(self._origImage, -self._angle, 1))
+        self.img = pygame.transform.rotozoom(self._origImage, -self._angle, 1)
 
     def normalize_angle(self):
         self._angle %= 360
 
-    def set_scale(self, factor: float):
-        self._scale = factor
-        self.set_img(pygame.transform.smoothscale(self._origImage, (self._origImage.get_width() * factor,
-                                                                    self._origImage.get_height() * factor)))
-
-    def get_scale(self) -> float:
+    @property
+    def scale(self) -> float:
         return self._scale
 
-    def set_alpha(self, alpha: int) -> None:
+    @scale.setter
+    def scale(self, factor: float) -> None:
+        self._scale = factor
+        self.img = pygame.transform.smoothscale(self._origImage, (self._origImage.get_width() * factor,
+                                                                  self._origImage.get_height() * factor))
+
+    @property
+    def alpha(self) -> int:
+        return self._alpha
+
+    @alpha.setter
+    def alpha(self, alpha: int) -> None:
         if alpha < 0:
             alpha = 0
         self.image.set_alpha(alpha)
         self._origImage.set_alpha(alpha)
         self._imageSet = True
         self._alpha = alpha
-
-    def get_alpha(self) -> int:
-        return self._alpha
 
     # Animations
     # TO-DO: speed customization, unification with delay, inertia
@@ -119,14 +130,14 @@ class PGObject(pygame.sprite.DirtySprite):
     def _test_fade(self) -> None:
         if not self._alphaChanges:
             return
-        if self._alphaChanges[0] == self._alpha:
+        if self._alphaChanges[0] == self.alpha:
             self._alphaChanges.pop(0)
             return
 
-        if self._alpha > self._alphaChanges[0]:
-            self.set_alpha(self._alpha - 8 if self._alphaChanges[0] < self._alpha - 8 else self._alphaChanges[0])
-        elif self._alpha < self._alphaChanges[0]:
-            self.set_alpha(self._alpha + 8 if self._alphaChanges[0] > self._alpha + 8 else self._alphaChanges[0])
+        if self.alpha > self._alphaChanges[0]:
+            self.alpha = self.alpha - 8 if self._alphaChanges[0] < self.alpha - 8 else self._alphaChanges[0]
+        elif self.alpha < self._alphaChanges[0]:
+            self.alpha = self.alpha + 8 if self._alphaChanges[0] > self.alpha + 8 else self._alphaChanges[0]
 
     def zoom(self, factor: float):
         self._scaleChanges.append(factor)
@@ -134,14 +145,14 @@ class PGObject(pygame.sprite.DirtySprite):
     def _test_zoom(self) -> None:
         if not self._scaleChanges:
             return
-        if self._scaleChanges[0] == self._scale:
+        if self._scaleChanges[0] == self.scale:
             self._scaleChanges.pop(0)
             return
 
-        if self._scale > self._scaleChanges[0]:
-            self.set_scale(self._scale - 0.2 if self._scaleChanges[0] < self._scale - 0.2 else self._scaleChanges[0])
-        elif self._scale < self._scaleChanges[0]:
-            self.set_scale(self._scale + 0.2 if self._scaleChanges[0] > self._scale + 0.2 else self._scaleChanges[0])
+        if self.scale > self._scaleChanges[0]:
+            self.scale = self.scale - 0.2 if self._scaleChanges[0] < self.scale - 0.2 else self._scaleChanges[0]
+        elif self.scale < self._scaleChanges[0]:
+            self.scale = self.scale + 0.2 if self._scaleChanges[0] > self.scale + 0.2 else self._scaleChanges[0]
 
     def rotate(self, angle: float) -> None:
         self._angleChanges.append(angle)
@@ -149,15 +160,15 @@ class PGObject(pygame.sprite.DirtySprite):
     def _test_rotate(self) -> None:
         if not self._angleChanges:
             return
-        if self._angleChanges[0] == self._angle:
+        if self._angleChanges[0] == self.angle:
             self._angleChanges.pop(0)
             self.normalize_angle()
             return
 
-        if self._angle > self._angleChanges[0]:
-            self.set_angle(self._angle - 3 if self._angleChanges[0] < self._angle - 3 else self._angleChanges[0])
-        if self._angle < self._angleChanges[0]:
-            self.set_angle(self._angle + 3 if self._angleChanges[0] > self._angle + 3 else self._angleChanges[0])
+        if self.angle > self._angleChanges[0]:
+            self.angle = self.angle - 3 if self._angleChanges[0] < self.angle - 3 else self._angleChanges[0]
+        if self.angle < self._angleChanges[0]:
+            self.angle = self.angle + 3 if self._angleChanges[0] > self.angle + 3 else self._angleChanges[0]
 
     def move(self, pos: tuple[int, int]) -> None:
         dx, dy = tuple(map(operator.sub, pos, self.rect.topleft))
@@ -168,44 +179,50 @@ class PGObject(pygame.sprite.DirtySprite):
     def _test_move(self) -> None:
         if not self._posChanges:
             return
-        if self._posChanges[0][0] == self.get_pos():
+        if self._posChanges[0][0] == self.pos:
             self._posChanges.pop(0)
             return
 
-        if self.get_pos() != self._posChanges[0][0]:
+        if self.pos != self._posChanges[0][0]:
             dx = self._posChanges[0][1]
             dy = self._posChanges[0][2]
             x = self._posChanges[0][0][0]
             y = self._posChanges[0][0][1]
-            temp_x = self.get_pos()[0] + dx
-            temp_y = self.get_pos()[1] + dy
+            temp_x = self.pos[0] + dx
+            temp_y = self.pos[1] + dy
             if (dx < 0 and temp_x < x) or (dx > 0 and temp_x > x):
                 temp_x = x
             if (dy < 0 and temp_y < y) or (dy > 0 and temp_y > y):
                 temp_y = y
-            self.set_pos((temp_x, temp_y))
+            self.pos = (temp_x, temp_y)
 
-    def set_rect(self, rect: pygame.rect.Rect) -> None:
-        self.rect = rect
-
-    def get_rect(self) -> pygame.rect.Rect:
-        return self.rect
-
-    def get_pos(self) -> (int, int):
+    @property
+    def pos(self) -> (int, int):
         return self.rect.x, self.rect.y
 
-    def set_pos(self, pos: tuple[int, int]) -> None:
+    @pos.setter
+    def pos(self, pos: tuple[int, int]) -> None:
         self.rect.topleft = pos
 
     def set_pos_prop(self, x: float, y: float) -> None:
-        self.set_pos((int((pygame.display.get_surface().get_width() - self.get_rect().width) * x),
-                     int((pygame.display.get_surface().get_height() - self.get_rect().height) * y)))
+        self.pos = (int((pygame.display.get_surface().get_width() - self.rect.width) * x),
+                    int((pygame.display.get_surface().get_height() - self.rect.height) * y))
 
-    def set_click_action(self, action: Callable) -> None:
+    @property
+    def click_action(self) -> Callable:
+        return self._clickAction
+
+    @click_action.setter
+    def click_action(self, action: Callable) -> None:
         if callable(action):
             self._clickAction = action
 
-    def set_hover_action(self, action: Callable) -> None:
+    @property
+    def hover_action(self) -> Callable:
+        return self._hoverAction
+
+    @hover_action.setter
+    def hover_action(self, action: Callable) -> None:
         if callable(action):
             self._hoverAction = action
 
@@ -232,7 +249,7 @@ class PGObject(pygame.sprite.DirtySprite):
     def collidepoint(self, p: tuple[int, int]) -> bool:
         mask = from_surface(self.image)
         try:
-            mask.get_at((p[0] - self.get_pos()[0], p[1] - self.get_pos()[1]))
+            mask.get_at((p[0] - self.pos[0], p[1] - self.pos[1]))
             return True
         except IndexError:
             return False

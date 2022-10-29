@@ -62,7 +62,8 @@ class PGGame:
         self._transitionOutComplete = True
         self._transitionInComplete = True
 
-    def get_screen(self) -> pygame.Surface:
+    @property
+    def screen(self) -> pygame.Surface:
         return self._screen
 
     # @function add_scene
@@ -89,11 +90,11 @@ class PGGame:
         assert scene, "Scene must be valid!"
         assert scene in self._scenes, "Scene must be contained!"
         if self._activeScene:
-            self._activeScene.set_transition_out(trans_out)
+            self._activeScene.transition_out_method = trans_out
             self._transitionOutComplete = False
         self._prevActiveScene = self._activeScene
         self._activeScene = scene
-        self._activeScene.set_transition_in(trans_in)
+        self._activeScene.transition_in_method = trans_in
         self._transitionInComplete = False
 
     def set_active_scene_index(self, index: int = 0, trans_in: str = "fade", trans_out: str = "fade") -> None:
@@ -147,22 +148,33 @@ class PGScene:
     def __init__(self, game: PGGame, bg: pygame.Surface = None):
         self._game = game
         self._game.add_scene(self)
-        self._screen = self._game.get_screen()
+        self._screen = self._game.screen
         self._objects = PGGroup()
         self._transitionInMethod = "none"
         self._transitionOutMethod = "none"
         self._veil = None
         self._background = None
-        self.set_background(bg)
+        self.background = bg
         self.update_background()
 
-    def set_transition_in(self, method: str):
+    @property
+    def transition_in_method(self) -> str:
+        return self._transitionInMethod
+
+    @transition_in_method.setter
+    def transition_in_method(self, method: str) -> None:
         self._transitionInMethod = method
 
-    def set_transition_out(self, method: str):
+    @property
+    def transition_out_method(self) -> str:
+        return self._transitionOutMethod
+
+    @transition_out_method.setter
+    def transition_out_method(self, method: str) -> None:
         self._transitionOutMethod = method
 
-    def get_group(self):
+    @property
+    def group(self) -> PGGroup:
         return self._objects
 
     def add_object(self, obj: PGObject):
@@ -171,7 +183,12 @@ class PGScene:
     def remove_object(self, obj: PGObject):
         self._objects.remove(obj)
 
-    def set_background(self, bg: pygame.Surface = None) -> None:
+    @property
+    def background(self) -> pygame.Surface:
+        return self._background
+
+    @background.setter
+    def background(self, bg: pygame.Surface = None) -> None:
         if bg:
             self._background = bg
         else:
@@ -181,7 +198,8 @@ class PGScene:
     def update_background(self) -> None:
         self._objects.clear(self._screen, self._background)
 
-    def get_game(self) -> PGGame:
+    @property
+    def game(self) -> PGGame:
         return self._game
 
     # @function activate
@@ -217,8 +235,9 @@ class PGScene:
     def fit_image(img_path: str, size: (int, int)) -> pygame.Surface:
         return pygame.transform.smoothscale(pygame.image.load(img_path), size)
 
-    # TO-DO: Wrap these into a transition module
-    # Fade into and out of the scene
+    #
+    # TO-DO: Enhance with decorators
+    #
 
     def transition_in(self) -> bool:
         res = False
@@ -239,20 +258,20 @@ class PGScene:
             self._veil.fade(0)
             return False
 
-        return self._veil.get_alpha() == 0
+        return self._veil.alpha == 0
 
     def _transition_in_zoom(self) -> bool:
         if not self._veil:
             self._veil = PGObject(self, 0, 0, img=self._screen.convert_alpha().copy())
             self._veil.set_scale(0.01)
             for s in self._objects.sprites():
-                s.set_alpha(0)
+                s.alpha = 0
             self._veil.zoom(1)
             return False
 
-        if self._veil.get_scale() == 1:
+        if self._veil.scale == 1:
             for s in self._objects.sprites():
-                s.set_alpha(255)
+                s.alpha = 255
             return True
         return False
 
@@ -272,8 +291,8 @@ class PGScene:
             veil_img = pygame.Surface(self._screen.get_size(), pygame.SRCALPHA)
             veil_img.fill((0, 0, 0))
             self._veil = PGObject(self, 0, 0, img=veil_img)
-            self._veil.set_alpha(0)
+            self._veil.alpha = 0
             self._veil.fade(255)
             return False
 
-        return self._veil.get_alpha() == 255
+        return self._veil.alpha == 255

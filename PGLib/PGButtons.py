@@ -88,9 +88,6 @@ class PGTextButton(PGObject):
             return True
 
     def on_click(self) -> None:
-        # from PGLib.PGAnimations import PGZoomer
-        # self._zoomer = PGZoomer(self._screen, self.get_img(), self._bg, self.get_rect().x, self.get_rect().y)
-        # self._zoomer.zoom()
         super().on_click()
 
     def get_text(self):
