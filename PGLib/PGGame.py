@@ -58,8 +58,9 @@ class PGGame:
         # Start with SSMenu
         self._scenes = []
         self._activeScene = None
-        self._activeSceneChangeComplete = True
-        self.set_active_scene(PGScene(self, transition="none"))
+        self._prevActiveScene = None
+        self._transitionOutComplete = True
+        self._transitionInComplete = True
 
     def get_screen(self) -> pygame.Surface:
         return self._screen
@@ -88,9 +89,10 @@ class PGGame:
         assert scene, "Scene must be valid!"
         assert scene in self._scenes, "Scene must be contained!"
         if self._activeScene:
-            self._activeScene.transition_out()
+            self._transitionOutComplete = False
+        self._prevActiveScene = self._activeScene
         self._activeScene = scene
-        self._activeSceneChangeComplete = False
+        self._transitionInComplete = False
 
     def set_active_scene_index(self, index: int = 0) -> None:
         self.set_active_scene(self._scenes[index])
@@ -109,12 +111,20 @@ class PGGame:
                     self._screen = pygame.display.set_mode((event.w, event.h),
                                                            pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.RESIZABLE)
 
-            if self._activeScene:
-                if not self._activeSceneChangeComplete:
-                    self._activeScene.update()
-                    self._activeSceneChangeComplete = self._activeScene.transition_in()
-                self._activeScene.update()
-                self._activeScene.draw()
+            scene = self._activeScene
+            if not scene:
+                return
+
+            if not self._transitionOutComplete:
+                scene = self._prevActiveScene
+                self._transitionOutComplete = scene.transition_out()
+                if self._transitionOutComplete:
+                    continue  # Do not update after transition out is complete to prevent "flashing"
+            elif not self._transitionInComplete:
+                self._transitionInComplete = scene.transition_in()
+
+            scene.update()
+            scene.draw()
             pygame.time.delay(self._delay)
 
     def start(self):
@@ -203,25 +213,60 @@ class PGScene:
 
     def transition_in(self) -> bool:
         if self._transition == "fade":
-            if not self._veil:
-                veil_img = pygame.Surface(self._screen.get_size(), pygame.SRCALPHA)
-                veil_img.fill((0, 0, 0))
-                self._veil = PGObject(self, 0, 0, img=veil_img)
-                self._veil.fade(0)
-                return False
-            if self._veil.get_alpha() == 0:
-                self._veil.kill()
-                self._objects.remove(self._veil)
-                return True
+            return self._transition_in_fade()
+        elif self._transition == "zoom":
+            return self._transition_in_zoom()
+        return True
+
+    def _transition_in_fade(self) -> bool:
+        if not self._veil:
+            veil_img = pygame.Surface(self._screen.get_size(), pygame.SRCALPHA)
+            veil_img.fill((0, 0, 0))
+            self._veil = PGObject(self, 0, 0, img=veil_img)
+            self._veil.fade(0)
             return False
+
+        if self._veil.get_alpha() == 0:
+            self._veil.kill()
+            self._veil = None
+            return True
+        return False
+
+    def _transition_in_zoom(self) -> bool:
+        if not self._veil:
+            self._veil = PGObject(self, 0, 0, img=self._screen.convert_alpha().copy())
+            self._veil.set_scale(0.01)
+            for s in self._objects.sprites():
+                s.set_alpha(0)
+            self._veil.zoom(1)
+            return False
+
+        if self._veil.get_scale() == 1:
+            self._veil.kill()
+            self._veil = None
+            for s in self._objects.sprites():
+                s.set_alpha(255)
+            return True
+        return False
+
+    def transition_out(self) -> bool:
+        if self._transition == "fade":
+            return self._transition_out_fade()
         elif self._transition == "zoom":
             return True
         return True
 
-    def transition_out(self) -> None:
-        pass
-        #if self._transition == "fade":
-            #fader = PGFader(delay=10)
-            #fader.effect_out(255)
-        #elif self._transition == "zoom":
-            #PGZoomer()
+    def _transition_out_fade(self) -> bool:
+        if not self._veil:
+            veil_img = pygame.Surface(self._screen.get_size(), pygame.SRCALPHA)
+            veil_img.fill((0, 0, 0))
+            self._veil = PGObject(self, 0, 0, img=veil_img)
+            self._veil.set_alpha(0)
+            self._veil.fade(255)
+            return False
+
+        if self._veil.get_alpha() == 255:
+            self._veil.kill()
+            self._veil = None
+            return True
+        return False

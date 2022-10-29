@@ -43,7 +43,6 @@ class PGObject(pygame.sprite.DirtySprite):
     def __init__(self, parent: Type[PGScene], x: int = 0, y: int = 0, img: pygame.Surface = None) -> None:
         super().__init__()
         self._parent = parent
-        self.add(parent.get_group())
         self.dirty = 2
         self._clickAction = None
         self._hoverAction = None
@@ -93,6 +92,9 @@ class PGObject(pygame.sprite.DirtySprite):
         self._scale = factor
         self.set_img(pygame.transform.smoothscale(self._origImage, (self._origImage.get_width() * factor,
                                                                     self._origImage.get_height() * factor)))
+
+    def get_scale(self) -> float:
+        return self._scale
 
     def set_alpha(self, alpha: int) -> None:
         if alpha < 0:
