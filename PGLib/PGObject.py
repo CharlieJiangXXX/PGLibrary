@@ -88,6 +88,9 @@ class PGObject(pygame.sprite.DirtySprite):
         self._angle = angle
         self.set_img(pygame.transform.rotozoom(self._origImage, -self._angle, 1))
 
+    def normalize_angle(self):
+        self._angle %= 360
+
     def set_scale(self, factor: float):
         self._scale = factor
         self.set_img(pygame.transform.smoothscale(self._origImage, (self._origImage.get_width() * factor,
@@ -148,6 +151,7 @@ class PGObject(pygame.sprite.DirtySprite):
             return
         if self._angleChanges[0] == self._angle:
             self._angleChanges.pop(0)
+            self.normalize_angle()
             return
 
         if self._angle > self._angleChanges[0]:
