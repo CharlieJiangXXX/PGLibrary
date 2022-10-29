@@ -1,9 +1,13 @@
+import pygame
+
 from PGLib.PGGame import *
 
 
 class TestScene(PGScene):
     def __init__(self, game: PGGame):
-        super().__init__(game, transition="fade")
+        bg = pygame.Surface(game.get_screen().get_size(), pygame.SRCALPHA)
+        bg.fill((50, 50, 100))
+        super().__init__(game, bg)
         self._button1 = PGTextButton(self, 0, 0, "googoo")
         self._button1.set_click_action(self.func1)
         self._button2 = PGTextButton(self, 50, 50, "byebye")
@@ -33,7 +37,7 @@ class TestScene(PGScene):
 
 class Scene2(PGScene):
     def __init__(self, game: PGGame):
-        super().__init__(game, transition="fade")
+        super().__init__(game)
         self._button1 = PGTextButton(self, 0, 0, "googoo")
 
 

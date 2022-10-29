@@ -85,17 +85,19 @@ class PGGame:
     # set_level
     # eliminate all scenes above @level and activate it thereafter
 
-    def set_active_scene(self, scene: PGScene) -> None:
+    def set_active_scene(self, scene: PGScene, trans_in: str = "fade", trans_out: str = "fade") -> None:
         assert scene, "Scene must be valid!"
         assert scene in self._scenes, "Scene must be contained!"
         if self._activeScene:
+            self._activeScene.set_transition_out(trans_out)
             self._transitionOutComplete = False
         self._prevActiveScene = self._activeScene
         self._activeScene = scene
+        self._activeScene.set_transition_in(trans_in)
         self._transitionInComplete = False
 
-    def set_active_scene_index(self, index: int = 0) -> None:
-        self.set_active_scene(self._scenes[index])
+    def set_active_scene_index(self, index: int = 0, trans_in: str = "fade", trans_out: str = "fade") -> None:
+        self.set_active_scene(self._scenes[index], trans_in, trans_out)
 
     # main game loop
     # processes & updates the active scene every frame
@@ -142,16 +144,23 @@ class PGGame:
 #             would be handled from within.
 
 class PGScene:
-    def __init__(self, game: PGGame, bg: pygame.Surface = None, transition: str = "fade"):
+    def __init__(self, game: PGGame, bg: pygame.Surface = None):
         self._game = game
         self._game.add_scene(self)
         self._screen = self._game.get_screen()
         self._objects = PGGroup()
-        self._transition = transition
+        self._transitionInMethod = "none"
+        self._transitionOutMethod = "none"
         self._veil = None
         self._background = None
         self.set_background(bg)
         self.update_background()
+
+    def set_transition_in(self, method: str):
+        self._transitionInMethod = method
+
+    def set_transition_out(self, method: str):
+        self._transitionOutMethod = method
 
     def get_group(self):
         return self._objects
@@ -178,8 +187,8 @@ class PGScene:
     # @function activate
     # @abstract Sets the current scene as active in the game.
 
-    def activate(self) -> None:
-        self._game.set_active_scene(self)
+    def activate(self, trans_in: str = "fade", trans_out: str = "fade") -> None:
+        self._game.set_active_scene(self, trans_in, trans_out)
 
     # @function finish
     # @abstract Entirely remove the scene from the game.
@@ -212,11 +221,15 @@ class PGScene:
     # Fade into and out of the scene
 
     def transition_in(self) -> bool:
-        if self._transition == "fade":
-            return self._transition_in_fade()
-        elif self._transition == "zoom":
-            return self._transition_in_zoom()
-        return True
+        res = False
+        if self._transitionInMethod == "fade":
+            res = self._transition_in_fade()
+        elif self._transitionInMethod == "zoom":
+            res = self._transition_in_zoom()
+        if res:
+            self._veil.kill()
+            self._veil = None
+        return res
 
     def _transition_in_fade(self) -> bool:
         if not self._veil:
@@ -226,11 +239,7 @@ class PGScene:
             self._veil.fade(0)
             return False
 
-        if self._veil.get_alpha() == 0:
-            self._veil.kill()
-            self._veil = None
-            return True
-        return False
+        return self._veil.get_alpha() == 0
 
     def _transition_in_zoom(self) -> bool:
         if not self._veil:
@@ -242,19 +251,21 @@ class PGScene:
             return False
 
         if self._veil.get_scale() == 1:
-            self._veil.kill()
-            self._veil = None
             for s in self._objects.sprites():
                 s.set_alpha(255)
             return True
         return False
 
     def transition_out(self) -> bool:
-        if self._transition == "fade":
-            return self._transition_out_fade()
-        elif self._transition == "zoom":
-            return True
-        return True
+        res = False
+        if self._transitionOutMethod == "fade":
+            res = self._transition_out_fade()
+        elif self._transitionOutMethod == "zoom":
+            res = True
+        if res:
+            self._veil.kill()
+            self._veil = None
+        return res
 
     def _transition_out_fade(self) -> bool:
         if not self._veil:
@@ -265,8 +276,4 @@ class PGScene:
             self._veil.fade(255)
             return False
 
-        if self._veil.get_alpha() == 255:
-            self._veil.kill()
-            self._veil = None
-            return True
-        return False
+        return self._veil.get_alpha() == 255
