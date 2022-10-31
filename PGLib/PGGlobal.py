@@ -22,10 +22,6 @@
 # SOFTWARE.
 #
 
-from PGLib.PGGame import *
+import pygame
 
-
-class PGPopUpScene(PGScene):
-    def __init__(self, game: PGGame, windows_size: tuple[int, int], window_bg: pygame.Surface = None):
-        super().__init__(game, None)
-        # Do it with layers
+clock = pygame.time.Clock()

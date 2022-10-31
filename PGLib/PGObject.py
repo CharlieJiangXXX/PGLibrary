@@ -1,38 +1,34 @@
 #
-# Released under "The BSD 3-Clause License"
+# MIT License
 #
-# Copyright © 2022 cjiang. All rights reserved.
+# Copyright (c) 2022 cjiang. All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# 1. Redistributions of source code must retain the above copyright notice,
-#    this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-# 3. Neither the name of mosquitto nor the names of its
-#    contributors may be used to endorse or promote products derived from
-#    this software without specific prior written permission.
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 #
+
 import math
 
 import pygame
 from typing import Union, Sequence, Callable, Type
 from pygame.mask import from_surface
 import operator
+from PGLib.PGGlobal import *
 
 
 class PGScene:
@@ -70,7 +66,7 @@ class PGObject(pygame.sprite.DirtySprite):
         if self._parent:
             self._parent.add_object(self)
 
-    def update(self) -> None:
+    def update(self, *args, **kwargs) -> None:
         return
 
     @property
@@ -170,11 +166,12 @@ class PGObject(pygame.sprite.DirtySprite):
         if self.angle < self._angleChanges[0]:
             self.angle = self.angle + 3 if self._angleChanges[0] > self.angle + 3 else self._angleChanges[0]
 
-    def move(self, pos: tuple[int, int]) -> None:
-        dx, dy = tuple(map(operator.sub, pos, self.rect.topleft))
-        dx = math.ceil(dx / 50)
-        dy = math.ceil(dy / 50)
+    def move(self, pos: tuple[int, int], time: float = 1) -> None:
+        dx, dy = tuple(map(lambda x, y: (x - y) / (clock.get_fps() * time), pos, self.rect.topleft))
+        dx = math.ceil(dx) if dx > 0 else math.floor(dx)
+        dy = math.ceil(dy) if dy > 0 else math.floor(dy)
         self._posChanges.append((pos, dx, dy))
+
 
     def _test_move(self) -> None:
         if not self._posChanges:
@@ -208,21 +205,11 @@ class PGObject(pygame.sprite.DirtySprite):
         self.pos = (int((pygame.display.get_surface().get_width() - self.rect.width) * x),
                     int((pygame.display.get_surface().get_height() - self.rect.height) * y))
 
-    @property
-    def click_action(self) -> Callable:
-        return self._clickAction
-
-    @click_action.setter
-    def click_action(self, action: Callable) -> None:
+    def connect_click(self, action: Callable) -> None:
         if callable(action):
             self._clickAction = action
 
-    @property
-    def hover_action(self) -> Callable:
-        return self._hoverAction
-
-    @hover_action.setter
-    def hover_action(self, action: Callable) -> None:
+    def connect_hover(self, action: Callable) -> None:
         if callable(action):
             self._hoverAction = action
 

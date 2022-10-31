@@ -21,11 +21,3 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-
-from PGLib.PGGame import *
-
-
-class PGPopUpScene(PGScene):
-    def __init__(self, game: PGGame, windows_size: tuple[int, int], window_bg: pygame.Surface = None):
-        super().__init__(game, None)
-        # Do it with layers

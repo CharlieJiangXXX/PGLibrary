@@ -9,21 +9,20 @@ class TestScene(PGScene):
         bg.fill((50, 50, 100))
         super().__init__(game, bg)
         self._button1 = PGTextButton(self, 0, 0, "googoo")
-        self._button1.click_action = self.func1
+        self._button1.connect_click(self.func1)
         self._button2 = PGTextButton(self, 50, 50, "byebye")
-        self._button2.click_action = self.func2
+        self._button2.connect_click(self.func2)
         self._button3 = PGTextButton(self, 200, 200, "hihihi")
-        self._button3.click_action = self.func3
+        self._button3.connect_click(self.func3)
         self._button4 = PGTextButton(self, 400, 400, "leave")
-        self._button4.click_action = self.func4
+        self._button4.connect_click(self.func4)
 
     def func1(self):
         self._button1.fade(150)
         self._button1.fade(255)
 
     def func2(self):
-        self._button2.move((615, 350))
-        self._button2.rotate(360)
+        self._button2.move((0, 300), 5)
 
     def func3(self):
         self._button3.fade(150)
@@ -39,6 +38,7 @@ class Scene2(PGScene):
     def __init__(self, game: PGGame):
         super().__init__(game)
         self._button1 = PGTextButton(self, 0, 0, "googoo")
+        self._button1.connect_click(self.finish)
 
 
 game = PGGame()

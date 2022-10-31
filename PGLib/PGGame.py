@@ -1,34 +1,29 @@
 #
-# Released under "The BSD 3-Clause License"
+# MIT License
 #
-# Copyright © 2022 cjiang. All rights reserved.
+# Copyright (c) 2022 cjiang. All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# 1. Redistributions of source code must retain the above copyright notice,
-#    this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-# 3. Neither the name of mosquitto nor the names of its
-#    contributors may be used to endorse or promote products derived from
-#    this software without specific prior written permission.
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 #
 
 from PGLib.PGButtons import *
+from PGLib.PGGlobal import *
 
 
 class PGScene:
@@ -44,7 +39,7 @@ class PGScene:
 #             to start the game.
 
 class PGGame:
-    def __init__(self, delay: int = 60) -> None:
+    def __init__(self, fps: int = 60) -> None:
         # Initialize Display
         pygame.init()
         pygame.display.init()
@@ -53,7 +48,7 @@ class PGGame:
         self._monitorHeight = pygame.display.Info().current_h
         self._screen = pygame.display.set_mode((self._monitorWidth / 2, self._monitorHeight / 2),
                                                pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.RESIZABLE)
-        self._delay = delay
+        self._fps = fps
 
         # Start with SSMenu
         self._scenes = []
@@ -78,10 +73,9 @@ class PGGame:
     # @param scene The scene to remove.
 
     def remove_scene(self, scene: PGScene) -> None:
-        if scene != self._activeScene:
-            self._scenes.remove(scene)
-            return
-        self.set_active_scene_index(len(self._scenes) - 1)
+        self._scenes.remove(scene)
+        if scene == self._activeScene:
+            self.set_active_scene_index(len(self._scenes) - 1)
 
     # set_level
     # eliminate all scenes above @level and activate it thereafter
@@ -110,6 +104,7 @@ class PGGame:
                     self._activeScene.process_events(event)
                 if event.type == pygame.QUIT:
                     pygame.quit()
+                    return
                 if event.type == pygame.VIDEORESIZE:
                     self._screen = pygame.display.set_mode((event.w, event.h),
                                                            pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.RESIZABLE)
@@ -122,13 +117,16 @@ class PGGame:
                 scene = self._prevActiveScene
                 self._transitionOutComplete = scene.transition_out()
                 if self._transitionOutComplete:
+                    if not self._activeScene.background_set():
+                        self._activeScene.background = self._screen.copy()
+                        self._activeScene.update_background()
                     continue  # Do not update after transition out is complete to prevent "flashing"
             elif not self._transitionInComplete:
                 self._transitionInComplete = scene.transition_in()
 
             scene.update()
             scene.draw()
-            pygame.time.delay(self._delay)
+            clock.tick(self._fps)
 
     def start(self):
         self._game_loop()
@@ -154,6 +152,7 @@ class PGScene:
         self._transitionOutMethod = "none"
         self._veil = None
         self._background = None
+        self._backgroundSet = False
         self.background = bg
         self.update_background()
 
@@ -183,6 +182,8 @@ class PGScene:
     def remove_object(self, obj: PGObject):
         self._objects.remove(obj)
 
+    # TO-DO: Handle dynamic background support
+
     @property
     def background(self) -> pygame.Surface:
         return self._background
@@ -191,9 +192,13 @@ class PGScene:
     def background(self, bg: pygame.Surface = None) -> None:
         if bg:
             self._background = bg
+            self._backgroundSet = True
         else:
             self._background = pygame.Surface(self._screen.get_size()).convert_alpha()
             self._background.fill((0, 0, 0))
+
+    def background_set(self) -> bool:
+        return self._backgroundSet
 
     def update_background(self) -> None:
         self._objects.clear(self._screen, self._background)
