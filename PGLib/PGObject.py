@@ -205,13 +205,13 @@ class PGObject(pygame.sprite.DirtySprite):
         self.pos = (int((pygame.display.get_surface().get_width() - self.rect.width) * x),
                     int((pygame.display.get_surface().get_height() - self.rect.height) * y))
 
-    def connect_click(self, action: Callable) -> None:
+    def connect_click(self, action: Callable, *args, **kwargs) -> None:
         if callable(action):
-            self._clickAction = action
+            self._clickAction = lambda: action(*args, **kwargs)
 
-    def connect_hover(self, action: Callable) -> None:
+    def connect_hover(self, action: Callable, *args, **kwargs) -> None:
         if callable(action):
-            self._hoverAction = action
+            self._hoverAction = lambda: action(*args, **kwargs)
 
     # @function _on_click
     # @abstract Click action to be override in subclasses.

@@ -72,10 +72,10 @@ class PGGame:
     # @abstract Remove a specified scene and activate the topmost one.
     # @param scene The scene to remove.
 
-    def remove_scene(self, scene: PGScene) -> None:
+    def remove_scene(self, scene: PGScene, trans_in: str = "fade", trans_out: str = "fade") -> None:
         self._scenes.remove(scene)
         if scene == self._activeScene:
-            self.set_active_scene_index(len(self._scenes) - 1)
+            self.set_active_scene_index(len(self._scenes) - 1, trans_in, trans_out)
 
     # set_level
     # eliminate all scenes above @level and activate it thereafter
@@ -216,8 +216,8 @@ class PGScene:
     # @function finish
     # @abstract Entirely remove the scene from the game.
 
-    def finish(self) -> None:
-        self._game.remove_scene(self)
+    def finish(self, trans_in: str = "fade", trans_out: str = "fade") -> None:
+        self._game.remove_scene(self, trans_in, trans_out)
 
     # @function process_events
     # @abstract Process all pygame events of its objects.
@@ -245,30 +245,36 @@ class PGScene:
     #
 
     def transition_in(self) -> bool:
-        res = False
         if self._transitionInMethod == "fade":
-            res = self._transition_in_fade()
+            res = self._transition_fade_alpha(True, 255)
+        elif self._transitionInMethod == "fade_alpha":
+            res = self._transition_fade_alpha(True, 200)
         elif self._transitionInMethod == "zoom":
             res = self._transition_in_zoom()
+        else:
+            return True
         if res:
             self._veil.kill()
             self._veil = None
         return res
 
-    def _transition_in_fade(self) -> bool:
+    def _transition_fade_alpha(self, is_in: bool, alpha: int) -> bool:
         if not self._veil:
             veil_img = pygame.Surface(self._screen.get_size(), pygame.SRCALPHA)
             veil_img.fill((0, 0, 0))
             self._veil = PGObject(self, 0, 0, img=veil_img)
-            self._veil.fade(0)
+            self._veil.alpha = alpha if is_in else 0
+            self._veil.fade(0 if is_in else alpha)
             return False
 
-        return self._veil.alpha == 0
+        if is_in:
+            return self._veil.alpha == 0
+        return self._veil.alpha == alpha
 
     def _transition_in_zoom(self) -> bool:
         if not self._veil:
             self._veil = PGObject(self, 0, 0, img=self._screen.convert_alpha().copy())
-            self._veil.set_scale(0.01)
+            self._veil.scale = 0.01
             for s in self._objects.sprites():
                 s.alpha = 0
             self._veil.zoom(1)
@@ -281,23 +287,15 @@ class PGScene:
         return False
 
     def transition_out(self) -> bool:
-        res = False
         if self._transitionOutMethod == "fade":
-            res = self._transition_out_fade()
+            res = self._transition_fade_alpha(False, 255)
+        elif self._transitionOutMethod == "fade_alpha":
+            res = self._transition_fade_alpha(False, 200)
         elif self._transitionOutMethod == "zoom":
-            res = True
+            return True
+        else:
+            return True
         if res:
             self._veil.kill()
             self._veil = None
         return res
-
-    def _transition_out_fade(self) -> bool:
-        if not self._veil:
-            veil_img = pygame.Surface(self._screen.get_size(), pygame.SRCALPHA)
-            veil_img.fill((0, 0, 0))
-            self._veil = PGObject(self, 0, 0, img=veil_img)
-            self._veil.alpha = 0
-            self._veil.fade(255)
-            return False
-
-        return self._veil.alpha == 255

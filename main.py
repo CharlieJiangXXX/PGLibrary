@@ -31,14 +31,14 @@ class TestScene(PGScene):
         self._button3.zoom(1)
 
     def func4(self):
-        Scene2(self.game).activate()
+        Scene2(self.game).activate(trans_in="none", trans_out="fade_alpha")
 
 
 class Scene2(PGScene):
     def __init__(self, game: PGGame):
         super().__init__(game)
         self._button1 = PGTextButton(self, 0, 0, "googoo")
-        self._button1.connect_click(self.finish)
+        self._button1.connect_click(self.finish, "fade_alpha", "none")
 
 
 game = PGGame()
